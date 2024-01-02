@@ -2,7 +2,7 @@ name: Build and Publish bahmni-mart Image
 on:
   push:
     branches: 
-      - master-bahmni-lite
+      - ocp-dev-bahmni-lite
 
 jobs:
   docker-build-publish:
