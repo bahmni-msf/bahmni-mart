@@ -3,6 +3,7 @@ on:
   push:
     branches: 
       - ocp-dev-bahmni-lite
+    workflow_dispatch:
 
 jobs:
   docker-build-publish:
@@ -29,7 +30,7 @@ jobs:
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
-          trivyignores: ./.trivyignore
+          # trivyignores: ./.trivyignore
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
       - name: Configure AWS Credentials
