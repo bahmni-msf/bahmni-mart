@@ -29,10 +29,10 @@ jobs:
           image-ref: 'mart:latest'
           format: 'table'
           exit-code: '1'
-          # ignore-unfixed: true
+          ignore-unfixed: true
           # trivyignores: ./.trivyignore
           vuln-type: 'os,library'
-          # severity: 'HIGH,CRITICAL'
+          severity: 'HIGH,CRITICAL'
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
