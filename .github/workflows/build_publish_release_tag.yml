@@ -29,7 +29,7 @@ jobs:
           image-ref: 'mart:latest'
           format: 'table'
           exit-code: '1'
-          ignore-unfixed: true
+          # ignore-unfixed: true
           trivyignores: ./.trivyignore
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
