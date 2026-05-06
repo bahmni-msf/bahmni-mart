@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -72,15 +73,12 @@ public class DatabaseObsWriter extends BaseWriter implements ItemWriter<List<Obs
     }
 
     private List<List<Obs>> groupForm2Obs(List<? extends List<Obs>> items) {
-        List<List<Obs>> groupedItems = new ArrayList<>();
-        items.forEach(obsList -> {
-            Function<Obs, List<Object>> compositeKey = obs ->
-                    Arrays.asList(obs.getEncounterId(), obs.getFormFieldPath());
-            Map<Object, List<Obs>> groupedObs = obsList.stream()
-                    .collect(Collectors.groupingBy(compositeKey, Collectors.toList()));
-            groupedObs.forEach((key, value) -> groupedItems.add(value));
-        });
-        return groupedItems;
+        Function<Obs, List<Object>> compositeKey = obs ->
+                Arrays.asList(obs.getEncounterId(), obs.getFormFieldPath());
+        Map<List<Object>, List<Obs>> groupedObs = items.stream()
+                .flatMap(Collection::stream)
+                .collect(Collectors.groupingBy(compositeKey, LinkedHashMap::new, Collectors.toList()));
+        return new ArrayList<>(groupedObs.values());
     }
 
     public void setForm(BahmniForm form) {

@@ -13,6 +13,7 @@ import org.bahmni.mart.table.domain.TableData;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,8 +22,10 @@ import java.util.ArrayList;
 
 import static org.bahmni.mart.CommonTestHelper.setValuesForMemberFields;
 import static org.bahmni.mart.CommonTestHelper.setValuesForSuperClassMemberFields;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -140,5 +143,52 @@ public class DatabaseObsWriterTest {
         databaseObsWriter.write(items);
 
         verify(martJdbcTemplate).execute("some sql");
+    }
+
+    @Test
+    public void shouldGroupForm2RecordsWithSameEncounterAndPathAcrossChunkItems() {
+        BahmniForm bahmniForm = new BahmniForm();
+        Concept formName = new Concept(1, "test", 1);
+        formName.setDataType("N/A");
+        bahmniForm.setFormName(formName);
+
+        Concept fieldOne = new Concept(1, "field_one", 0);
+        fieldOne.setDataType("Numeric");
+        Concept fieldTwo = new Concept(1, "field_two", 0);
+        fieldTwo.setDataType("Text");
+        bahmniForm.addField(fieldOne);
+        bahmniForm.addField(fieldTwo);
+
+        ArrayList<ArrayList<Obs>> items = new ArrayList<>();
+
+        ArrayList<Obs> firstObsList = new ArrayList<>();
+        Obs obs1 = new Obs(1, 2, fieldOne, "4");
+        obs1.setEncounterId("56");
+        obs1.setFormFieldPath("test");
+        firstObsList.add(obs1);
+
+        ArrayList<Obs> secondObsList = new ArrayList<>();
+        Obs obs2 = new Obs(2, 2, fieldTwo, "test IT");
+        obs2.setEncounterId("56");
+        obs2.setFormFieldPath("test");
+        secondObsList.add(obs2);
+
+        items.add(firstObsList);
+        items.add(secondObsList);
+
+        databaseObsWriter.setForm(bahmniForm);
+        databaseObsWriter.setJobDefinition(jobDefinition);
+        when(jobDefinition.getType()).thenReturn("form2obs");
+        when(form2TableMetadataGenerator.getTableData(bahmniForm)).thenReturn(new TableData("test"));
+        when(freeMarkerEvaluatorForTableRecords.evaluate(anyString(), any(ObsRecordExtractorForTable.class)))
+                .thenReturn("some sql");
+
+        databaseObsWriter.write(items);
+
+        ArgumentCaptor<ObsRecordExtractorForTable> extractorCaptor = ArgumentCaptor.forClass(
+                ObsRecordExtractorForTable.class);
+        verify(freeMarkerEvaluatorForTableRecords, times(1))
+                .evaluate(anyString(), extractorCaptor.capture());
+        assertEquals(1, extractorCaptor.getValue().getRecordList().size());
     }
 }
