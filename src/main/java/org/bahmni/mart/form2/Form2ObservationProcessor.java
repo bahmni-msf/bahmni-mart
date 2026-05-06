@@ -30,6 +30,7 @@ public class Form2ObservationProcessor implements ItemProcessor<Map<String, Obje
 
     private static final String SLASH = "/";
     private static final String DOT = ".";
+    private static final int INVALID_INDEX = -1;
     private BahmniForm form;
 
     @Value("classpath:sql/form2Obs.sql")
@@ -86,11 +87,37 @@ public class Form2ObservationProcessor implements ItemProcessor<Map<String, Obje
 
     private void setFormFieldPath(Obs obs, String formFieldPath) {
         int formDepthToParent = form.getDepthToParent();
-        obs.setFormFieldPath(getProcessedFormFieldPath(formFieldPath, formDepthToParent));
+        obs.setFormFieldPath(getProcessedFormFieldPathWithLegacyFallback(formFieldPath, formDepthToParent));
         if (formDepthToParent != 0) {
             int parentFormDepthToParent = form.getParent().getDepthToParent();
             obs.setReferenceFormFieldPath(getProcessedFormFieldPath(formFieldPath, parentFormDepthToParent));
         }
+    }
+
+    private String getProcessedFormFieldPathWithLegacyFallback(String formFieldPath, int depthToParent) {
+        if (shouldFallbackToRootFormPath(formFieldPath, depthToParent)) {
+            // Backward compatibility for historical encounters captured before
+            // a top-level add-more obs group was introduced.
+            return getFormNameFrom(formFieldPath);
+        }
+        return getProcessedFormFieldPath(formFieldPath, depthToParent);
+    }
+
+    private boolean shouldFallbackToRootFormPath(String formFieldPath, int depthToParent) {
+        return isTopLevelAddMoreGroupChild(depthToParent) &&
+                hasMultipleFields() &&
+                getSlashIndex(formFieldPath, depthToParent) == INVALID_INDEX;
+    }
+
+    private boolean isTopLevelAddMoreGroupChild(int depthToParent) {
+        return depthToParent == 1 &&
+                !form.isMultiSelect() &&
+                form.getParent() != null &&
+                form.getParent().getDepthToParent() == 0;
+    }
+
+    private boolean hasMultipleFields() {
+        return form.getFields() != null && form.getFields().size() > 1;
     }
 
     private String getProcessedFormFieldPath(String formFieldPath, int depthToParent) {
@@ -98,7 +125,8 @@ public class Form2ObservationProcessor implements ItemProcessor<Map<String, Obje
             return getFormNameFrom(formFieldPath);
         }
         int slashIndex = getSlashIndex(formFieldPath, depthToParent);
-        return StringUtils.substring(formFieldPath, 0, slashIndex);
+        return slashIndex == INVALID_INDEX ? formFieldPath
+                : StringUtils.substring(formFieldPath, 0, slashIndex);
     }
 
     private String getFormNameFrom(String formFieldPath) {
@@ -107,12 +135,15 @@ public class Form2ObservationProcessor implements ItemProcessor<Map<String, Obje
 
     private int getSlashIndex(String formFieldPath, int depthToParent) {
         int slashCount = 0;
-        int slashIndex = -1;
+        int slashIndex = INVALID_INDEX;
         while (slashCount <= depthToParent) {
             slashIndex = formFieldPath.indexOf(SLASH, slashIndex + 1);
+            if (slashIndex == INVALID_INDEX) {
+                return INVALID_INDEX;
+            }
             slashCount++;
         }
-        return slashIndex == -1 ? formFieldPath.length() : slashIndex;
+        return slashIndex;
     }
 
     public void setForm(BahmniForm form) {
